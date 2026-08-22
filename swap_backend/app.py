@@ -7,6 +7,7 @@ from typing import Deque, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from .common import PROTOCOL_NAMES, TelemetryRecord
@@ -57,6 +58,12 @@ async def on_shutdown() -> None:
             await ingest_task
 
 
+@app.get("/", include_in_schema=False)
+def read_root():
+    """Redirect the base URL directly to the API documentation."""
+    return RedirectResponse(url="/docs")
+
+
 @app.get("/health")
 def health() -> Dict[str, str]:
     return {"status": "ok"}
@@ -70,6 +77,11 @@ def get_status() -> Dict[str, object]:
         decision = latest_decision_by_node.get(node) or model.recommend_for_node(node)
         data[node] = _format_status(record=record, decision=decision)
     return {"nodes": data}
+
+
+@app.get("/model/info")
+def get_model_info() -> Dict[str, object]:
+    return model.model_info()
 
 
 @app.get("/telemetry/recent")
@@ -100,6 +112,12 @@ async def decide(node: str = Query(default="a", pattern="^(a|b)$")) -> Dict[str,
         "confidence": decision.confidence,
         "decision_source": decision.source,
         "forced": decision.protocol != status.active_protocol,
+        "raw_scores": decision.raw_scores,
+        "probabilities": decision.probabilities,
+        "lqi": decision.lqi,
+        "hysteresis_guarded": decision.hysteresis_guarded,
+        "dwell_guarded": decision.dwell_guarded,
+        "total_loss_override": decision.total_loss_override,
     }
 
 
@@ -158,7 +176,15 @@ async def _broadcast_ws(record: TelemetryRecord, decision: Optional[Decision]) -
             "protocol": decision.protocol,
             "protocol_name": PROTOCOL_NAMES[decision.protocol],
             "confidence": decision.confidence,
+            "decision_source": decision.source,
             "source": decision.source,
+            "raw_scores": decision.raw_scores,
+            "probabilities": decision.probabilities,
+            "lqi": decision.lqi,
+            "hysteresis_guarded": decision.hysteresis_guarded,
+        "dwell_guarded": decision.dwell_guarded,
+        "total_loss_override": decision.total_loss_override,
+            "best_candidate": decision.best_candidate,
         },
     }
     stale_clients: List[WebSocket] = []
@@ -180,11 +206,20 @@ def _format_status(record: Optional[TelemetryRecord], decision: Optional[Decisio
         recommended_protocol_name = None
         confidence = None
         decision_source = None
+        extra: Dict[str, object] = {}
     else:
         recommended_protocol = decision.protocol
         recommended_protocol_name = PROTOCOL_NAMES[decision.protocol]
         confidence = decision.confidence
         decision_source = decision.source
+        extra = {
+            "raw_scores": decision.raw_scores,
+            "probabilities": decision.probabilities,
+            "lqi": decision.lqi,
+            "hysteresis_guarded": decision.hysteresis_guarded,
+        "dwell_guarded": decision.dwell_guarded,
+        "total_loss_override": decision.total_loss_override,
+        }
 
     return {
         "active_protocol_reported": record.active_protocol,
@@ -201,4 +236,5 @@ def _format_status(record: Optional[TelemetryRecord], decision: Optional[Decisio
         "lora_loss": record.lora_loss,
         "rtt_ms": record.rtt_ms,
         "recv_ts": record.recv_ts,
+        **extra,
     }

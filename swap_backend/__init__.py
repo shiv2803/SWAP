@@ -1,2 +1,1 @@
-"""SWAP prototype backend package."""
 

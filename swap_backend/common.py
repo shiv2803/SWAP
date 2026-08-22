@@ -81,4 +81,3 @@ class CsvLogger:
         with self._path.open("a", newline="", encoding="utf-8") as file_obj:
             writer = csv.DictWriter(file_obj, fieldnames=CSV_FIELDS)
             writer.writerow(asdict(record))
-
