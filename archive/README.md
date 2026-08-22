@@ -1,8 +1,20 @@
 # Archive
 
-Superseded prototypes — kept for reference, not part of the active build.
+Currently empty. Kept as the designated home for genuinely superseded
+prototypes — not part of the active build — should anything need to move
+here in future.
 
-- **`uno_q_app/`** (what remains of it) and **`laptop_training/`** use a different 7-feature schema (`wifi_rssi, ble_rssi, lora_rssi, lora_snr, pdr, rtt, retries`) than the current `swap_backend/` (`*_loss` fields, no `pdr`/`retries`). Wiring either of these to the live backend would silently corrupt inference — the feature order and meaning don't match.
-- `swap_backend/` is the canonical implementation going forward, including the model training/deployment pipeline.
+**`laptop_training/` and `uno_q_app/` were both restored to the repo root at
+the project owner's explicit request** and are no longer archived. Both use a
+different 7-feature schema (`wifi_rssi, ble_rssi, lora_rssi, lora_snr, pdr,
+rtt, retries`) than the current `swap_backend/` (`*_loss` fields, no
+`pdr`/`retries`) — wiring either to the live backend would silently corrupt
+inference, the feature order and meaning don't match — but the owner wants
+them kept in place regardless, so treat them as intentionally-kept dead code,
+not leftovers to re-sweep in here. `swap_backend/` remains the canonical
+implementation, including the model training/deployment pipeline.
 
-**Correction:** `uno_q_app/sketch/sketch.ino` was originally archived here along with the rest of `uno_q_app/`, but it was never actually stale — it's a real, current "Node A UART forwarder" for the UNO Q's own microcontroller, unrelated to the old `pdr`/`rtt`/`retries` schema issue above (that issue is specific to `uno_q_app/python/main.py`). It's been moved out to `../uno_q_mcu_sketch/`. Only `uno_q_app/python/` and the leftover `sketch/sketch.yaml.bak` remain here, both genuinely stale (unchanged since 2026-08-21, before any of the current `swap_backend`/`swap_node` work existed).
+`uno_q_app/sketch/sketch.ino` was never part of either — that file was
+correctly identified as non-stale early on and lives in
+`../uno_q_mcu_sketch/` (a real, current "Node A UART forwarder" for the UNO
+Q's own microcontroller).
