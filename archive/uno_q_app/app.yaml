@@ -1,0 +1,6 @@
+name: SWAP Link Predictor
+description: "Random-forest link-quality predictor for the SWAP prototype. Python (MPU) runs the RandomForestClassifier and tells the sketch (MCU) which link (Wi-Fi/BLE/LoRa) to indicate as active."
+icon: 📡
+version: "1.0.0"
+ports: []
+bricks: []
