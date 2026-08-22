@@ -52,6 +52,12 @@ class SimulatorTelemetrySource:
             raise ValueError("Invalid protocol")
         self._forced_protocol[node] = protocol
 
+    def counters(self) -> Dict[str, object]:
+        # Not a TelemetrySource subclass, so it doesn't inherit the ABC's
+        # default {} — /status calls this unconditionally regardless of
+        # input mode, so it needs its own no-op implementation.
+        return {}
+
     async def run(self, out_queue: "asyncio.Queue[TelemetryRecord]") -> None:
         await asyncio.gather(
             self._node_loop("a", phase_offset=0.0, out_queue=out_queue),
@@ -90,21 +96,10 @@ class SimulatorTelemetrySource:
         cycle = (math.sin(t / 18.0) + 1.0) / 2.0
         wifi_rssi = -60.0 - 25.0 * cycle
         wifi_loss = 0.02 + 0.38 * cycle
+        ble_rssi = -70.0 - 18.0 * cycle
         lora_rssi = -90.0 - 7.0 * cycle
         lora_snr = 7.0 - 4.0 * cycle
         lora_loss = 0.01 + 0.07 * cycle
-
-        # BLE rides its own independent cycle (different period + phase
-        # offset) instead of the same `cycle` as WiFi/LoRa. On a shared
-        # cycle, BLE's RSSI always sits on the same slope between WiFi's and
-        # LoRa's, so it can never be the best-scoring link: WiFi wins
-        # whenever conditions are good, LoRa wins whenever they're bad, and
-        # BLE is never optimal at either extreme — confirmed empirically,
-        # zero BLE-labelled windows across 43k real training windows.
-        # Decoupling it lets BLE be independently "good" while WiFi is
-        # degraded, giving it genuine windows where it's the right call.
-        ble_cycle = (math.sin(t / 11.0 + 2.4) + 1.0) / 2.0
-        ble_rssi = -70.0 - 18.0 * ble_cycle
         return _NodePhase(
             wifi_rssi=wifi_rssi,
             wifi_loss=wifi_loss,

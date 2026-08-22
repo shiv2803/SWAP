@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import logging
+import os
 from collections import deque
 from dataclasses import asdict
 from typing import Deque, Dict, List, Optional
@@ -76,7 +77,13 @@ def get_status() -> Dict[str, object]:
         record = latest_record_by_node.get(node)
         decision = latest_decision_by_node.get(node) or model.recommend_for_node(node)
         data[node] = _format_status(record=record, decision=decision)
-    return {"nodes": data}
+    return {"nodes": data, "ingest": telemetry_source.counters()}
+
+
+@app.get("/telemetry/recent")
+def get_recent(limit: int = Query(default=50, ge=1, le=500)) -> Dict[str, object]:
+    payload = [asdict(record) for record in list(recent_records)[-limit:]]
+    return {"count": len(payload), "records": payload}
 
 
 @app.get("/model/info")
@@ -84,10 +91,26 @@ def get_model_info() -> Dict[str, object]:
     return model.model_info()
 
 
-@app.get("/telemetry/recent")
-def get_recent(limit: int = Query(default=50, ge=1, le=500)) -> Dict[str, object]:
-    payload = [asdict(record) for record in list(recent_records)[-limit:]]
-    return {"count": len(payload), "records": payload}
+class UartRawSendRequest(BaseModel):
+    message: str
+
+
+@app.post("/debug/uart/send")
+async def debug_uart_send(request: UartRawSendRequest) -> Dict[str, object]:
+    """Raw passthrough (folded in from UART_Demo): sends an arbitrary line
+    straight to Node A on D20/D21, bypassing the force_protocol JSON envelope.
+    For probing the physical link directly, e.g. during bring-up."""
+    if os.environ.get("SWAP_INPUT_MODE", "sim").strip().lower() != "serial":
+        raise HTTPException(status_code=409, detail="Only available in SWAP_INPUT_MODE=serial")
+    # Local import: arduino.app_utils only exists inside App Lab's own Python
+    # environment on the board. Deferred so this module still imports cleanly
+    # off the board (e.g. running the simulator locally) — this endpoint
+    # already 409s before reaching this line unless SWAP_INPUT_MODE=serial.
+    from arduino.app_utils import Bridge
+
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, lambda: Bridge.call("uart_send_raw", request.message, timeout=5))
+    return {"ok": True, "sent": request.message}
 
 
 @app.post("/decide")
@@ -117,7 +140,6 @@ async def decide(node: str = Query(default="a", pattern="^(a|b)$")) -> Dict[str,
         "lqi": decision.lqi,
         "hysteresis_guarded": decision.hysteresis_guarded,
         "dwell_guarded": decision.dwell_guarded,
-        "total_loss_override": decision.total_loss_override,
     }
 
 
@@ -176,14 +198,12 @@ async def _broadcast_ws(record: TelemetryRecord, decision: Optional[Decision]) -
             "protocol": decision.protocol,
             "protocol_name": PROTOCOL_NAMES[decision.protocol],
             "confidence": decision.confidence,
-            "decision_source": decision.source,
             "source": decision.source,
             "raw_scores": decision.raw_scores,
             "probabilities": decision.probabilities,
             "lqi": decision.lqi,
             "hysteresis_guarded": decision.hysteresis_guarded,
-        "dwell_guarded": decision.dwell_guarded,
-        "total_loss_override": decision.total_loss_override,
+            "dwell_guarded": decision.dwell_guarded,
             "best_candidate": decision.best_candidate,
         },
     }
@@ -217,8 +237,7 @@ def _format_status(record: Optional[TelemetryRecord], decision: Optional[Decisio
             "probabilities": decision.probabilities,
             "lqi": decision.lqi,
             "hysteresis_guarded": decision.hysteresis_guarded,
-        "dwell_guarded": decision.dwell_guarded,
-        "total_loss_override": decision.total_loss_override,
+            "dwell_guarded": decision.dwell_guarded,
         }
 
     return {
