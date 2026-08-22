@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated/build artifacts — trained models and telemetry logs are
+# reproducible from swap_backend/train_model.py + the simulator, not source.
+models/
+telemetry_log*.csv
+*.zip
