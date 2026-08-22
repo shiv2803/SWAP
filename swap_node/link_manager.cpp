@@ -16,17 +16,21 @@ constexpr uint32_t BLE_SCAN_SECONDS = 5;
 // Node A = BLE peripheral/server. Central writes back to bleChar_ once it
 // has processed our PING notification; that write is our PONG.
 class BleServerCallbacks : public NimBLEServerCallbacks {
-    void onConnect(NimBLEServer* /*server*/) override {
+    // NimBLE-Arduino 2.x signatures (verified against the installed 2.3.1
+    // headers) — onConnect gained NimBLEConnInfo&, onDisconnect gained both
+    // NimBLEConnInfo& and an int reason code, vs. the 1.4.x signatures this
+    // was originally written against.
+    void onConnect(NimBLEServer* /*server*/, NimBLEConnInfo& /*connInfo*/) override {
         Serial.println("[BLE] central connected");
     }
-    void onDisconnect(NimBLEServer* /*server*/) override {
+    void onDisconnect(NimBLEServer* /*server*/, NimBLEConnInfo& /*connInfo*/, int /*reason*/) override {
         Serial.println("[BLE] central disconnected");
         NimBLEDevice::startAdvertising();
     }
 };
 
 class BleCharCallbacks : public NimBLECharacteristicCallbacks {
-    void onWrite(NimBLECharacteristic* /*characteristic*/) override {
+    void onWrite(NimBLECharacteristic* /*characteristic*/, NimBLEConnInfo& /*connInfo*/) override {
         s_bleExchangeSignal = true;  // PONG received
     }
 };
