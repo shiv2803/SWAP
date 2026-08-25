@@ -1,56 +1,67 @@
 """SWAP link-quality predictor - Python (MPU) side of the UNO Q app.
 
-Loads the pre-trained RandomForestClassifier (models/link_quality_model.joblib
-in laptop_training/, trained by laptop_training/train_model.py) and, once per
-cycle, asks the sketch (MCU) for the latest link telemetry, runs inference,
-and tells the sketch which protocol to indicate as active.
+Runs on the Linux side of the UNO Q. Registers a Bridge handler for
+"telemetry_line" notifications pushed by sketch/sketch.ino (one JSON
+telemetry frame per Node A UART line), runs the pre-trained
+RandomForestClassifier on each frame, and calls the sketch's
+"force_protocol" RPC with the predicted protocol.
+
+The model (laptop_training/train_model.py) is trained on the real telemetry
+schema used by swap_node / swap_backend -- wifi_rssi, wifi_loss, ble_rssi,
+lora_rssi, lora_snr, lora_loss, rtt_ms -- labeled with the same heuristic
+scoring formulas as swap_backend's rule_based decision path
+(swap_backend/link_quality_model.py::compute_raw_scores), so the feature
+order below is a direct field-for-field read of the JSON frame, no stubs.
 """
 
-import time
+import json
 from pathlib import Path
 
 import joblib
 import pandas as pd
-from arduino.app_utils import App, Bridge, Monitor
+from arduino.app_utils import App, Bridge
 
 MODEL_DIR = Path(__file__).parent / "model"
 MODEL_PATH = MODEL_DIR / "swap_random_forest.joblib"
 FEATURE_SEQUENCE_PATH = MODEL_DIR / "feature_sequence.txt"
 
 PROTOCOL_NAMES = {0: "WIFI", 1: "BLE", 2: "LORA"}
-PREDICT_INTERVAL_S = 1.0
 
 FEATURE_COLS = FEATURE_SEQUENCE_PATH.read_text().strip().split(",")
 model = joblib.load(MODEL_PATH)
-Monitor.println(f"Loaded model from {MODEL_PATH} (features: {FEATURE_COLS})")
+print(f"Loaded model from {MODEL_PATH} (features: {FEATURE_COLS})", flush=True)
 
 
-def loop():
+def on_telemetry_line(line):
     try:
-        # Sketch must expose get_telemetry() returning the 7 readings below,
-        # in FEATURE_COLS order: wifi_rssi, ble_rssi, lora_rssi, lora_snr,
-        # pdr, rtt, retries. See sketch/sketch.ino.
-        readings = Bridge.call("get_telemetry")
-    except Exception as exc:
-        Monitor.println(f"get_telemetry failed: {exc}")
-        time.sleep(PREDICT_INTERVAL_S)
+        data = json.loads(line)
+    except (TypeError, ValueError) as exc:
+        print(f"bad telemetry line {line!r}: {exc}", flush=True)
         return
 
-    features = pd.DataFrame([readings], columns=FEATURE_COLS)
+    node = data.get("node", "a")
+    try:
+        row = [data[col] for col in FEATURE_COLS]
+    except KeyError as exc:
+        print(f"telemetry line missing {exc}: {data}", flush=True)
+        return
+
+    features = pd.DataFrame([row], columns=FEATURE_COLS)
     prediction = int(model.predict(features)[0])
     confidence = float(model.predict_proba(features)[0][prediction])
     protocol_name = PROTOCOL_NAMES.get(prediction, "UNKNOWN")
 
-    Monitor.println(
-        f"predicted={protocol_name} confidence={confidence:.2f} raw={readings}"
+    print(
+        f"node={node} predicted={protocol_name} confidence={confidence:.2f} raw={row}",
+        flush=True,
     )
 
     try:
-        Bridge.call("set_protocol", prediction)
+        Bridge.call("force_protocol", node, prediction)
     except Exception as exc:
-        Monitor.println(f"set_protocol failed: {exc}")
-
-    time.sleep(PREDICT_INTERVAL_S)
+        print(f"force_protocol failed: {exc}", flush=True)
 
 
-App.run(user_loop=loop)
+Bridge.provide("telemetry_line", on_telemetry_line)
+
+App.run()

@@ -10,11 +10,16 @@
 // completed" — semantics documented at each use site below.
 namespace {
 volatile bool s_bleExchangeSignal = false;
+// Holds whatever Node B just wrote to bleChar_ -- its own telemetry CSV now,
+// not a bare "PONG". Set in BleCharCallbacks::onWrite(), read back in
+// tryBleExchange() right after s_bleExchangeSignal wakes it.
+String s_bleExchangePayload;
 constexpr uint32_t BLE_SCAN_SECONDS = 5;
 
 #ifdef NODE_ROLE_A
 // Node A = BLE peripheral/server. Central writes back to bleChar_ once it
-// has processed our PING notification; that write is our PONG.
+// has processed our request notification; that write now carries Node B's
+// real telemetry, not just an ack.
 class BleServerCallbacks : public NimBLEServerCallbacks {
     // NimBLE-Arduino 2.x signatures (verified against the installed 2.3.1
     // headers) — onConnect gained NimBLEConnInfo&, onDisconnect gained both
@@ -30,37 +35,41 @@ class BleServerCallbacks : public NimBLEServerCallbacks {
 };
 
 class BleCharCallbacks : public NimBLECharacteristicCallbacks {
-    void onWrite(NimBLECharacteristic* /*characteristic*/, NimBLEConnInfo& /*connInfo*/) override {
-        s_bleExchangeSignal = true;  // PONG received
+    // NimBLEAttValue::c_str()/length() verified against the installed
+    // NimBLE-Arduino 2.5.1 headers (NimBLEAttValue.h) -- safe here because
+    // the payload is plain ASCII CSV, never raw/embedded-null binary.
+    void onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo& /*connInfo*/) override {
+        NimBLEAttValue val = characteristic->getValue();
+        s_bleExchangePayload = String(val.c_str());
+        s_bleExchangeSignal = true;
     }
 };
 
 BleServerCallbacks g_bleServerCallbacks;
 BleCharCallbacks g_bleCharCallbacks;
 #else
-// Node B = BLE central/client. PING arrives as a notification; we ack it
-// immediately with a write so Node A can close out its RTT measurement.
+// Node B = BLE central/client. A's request arrives as a notification; we
+// reply by writing our own current telemetry CSV (built from the global
+// `linkManager` instance defined in the .ino), replacing the old bare
+// "PONG" ack.
+extern LinkManager linkManager;
+
 void onBleNotify(NimBLERemoteCharacteristic* remoteChar, uint8_t* /*data*/, size_t /*len*/, bool /*isNotify*/) {
-    s_bleExchangeSignal = true;  // PING observed
+    s_bleExchangeSignal = true;
     if (remoteChar->canWrite()) {
-        remoteChar->writeValue("PONG", false);
+        String payload = linkManager.buildOwnPeerPayload();
+        remoteChar->writeValue(payload.c_str(), false);
     }
 }
 #endif
 }  // namespace
 
 void LinkManager::begin() {
-    pinMode(LED_WIFI, OUTPUT);
-    pinMode(LED_BLE, OUTPUT);
-    pinMode(LED_LORA, OUTPUT);
-
     TELEMETRY_SERIAL.begin(TELEMETRY_BAUD, SERIAL_8N1, TELEMETRY_RX_PIN, TELEMETRY_TX_PIN);
 
     setupLoRa();
     beginWifi();
     beginBle();
-
-    setActiveProtocolLed(active_);
 }
 
 void LinkManager::beginWifi() {
@@ -106,14 +115,19 @@ void LinkManager::beginBle() {
     Serial.println("[BLE] advertising as peripheral (Node A)");
 #else
     Serial.println("[BLE] scanning for Node A...");
+    // NimBLE-Arduino 2.x: scan->start() now returns bool (did the scan start
+    // OK), not the results themselves; getResults(duration, isContinue) is
+    // the direct replacement for the old "start and block until done,
+    // returning results" pattern. getDevice() also returns a pointer now,
+    // not a value -- verified against the installed 2.5.1 headers.
     NimBLEScan* scan = NimBLEDevice::getScan();
-    NimBLEScanResults results = scan->start(BLE_SCAN_SECONDS, false);
+    NimBLEScanResults results = scan->getResults(BLE_SCAN_SECONDS, false);
 
     for (int i = 0; i < results.getCount(); i++) {
-        NimBLEAdvertisedDevice device = results.getDevice(i);
-        if (device.isAdvertisingService(NimBLEUUID(BLE_SERVICE_UUID))) {
+        const NimBLEAdvertisedDevice* device = results.getDevice(i);
+        if (device->isAdvertisingService(NimBLEUUID(BLE_SERVICE_UUID))) {
             bleClient_ = NimBLEDevice::createClient();
-            if (bleClient_->connect(&device)) {
+            if (bleClient_->connect(device)) {
                 NimBLERemoteService* svc = bleClient_->getService(BLE_SERVICE_UUID);
                 if (svc != nullptr) {
                     bleRemoteChar_ = svc->getCharacteristic(BLE_CHAR_UUID);
@@ -142,15 +156,24 @@ bool LinkManager::tryWifiExchange() {
         wifiClient_ = wifiTcpServer_.available();
     }
     if (wifiClient_.connected()) {
+        // Ask Node B for its telemetry instead of a bare PING -- its reply
+        // (a newline-terminated CSV line, not 4 fixed bytes) is what we're
+        // actually after now.
         const uint32_t t0 = millis();
-        wifiClient_.write("PING", 4);
+        wifiClient_.write("REQB\n", 5);
+        String line;
+        bool gotLine = false;
         const uint32_t start = millis();
-        while (wifiClient_.available() < 4 && millis() - start < LINK_TIMEOUT_MS) {
-            delay(2);
+        while (millis() - start < LINK_TIMEOUT_MS && !gotLine) {
+            while (wifiClient_.available() > 0) {
+                const char c = (char)wifiClient_.read();
+                if (c == '\n') { gotLine = true; break; }
+                if (c != '\r') line += c;
+            }
+            if (!gotLine) delay(2);
         }
-        if (wifiClient_.available() >= 4) {
-            uint8_t resp[4];
-            wifiClient_.read(resp, 4);
+        if (gotLine) {
+            parsePeerPayload(line);
             sample.rtt_ms = millis() - t0;
             ok = true;
         }
@@ -159,10 +182,13 @@ bool LinkManager::tryWifiExchange() {
     if (!wifiClient_.connected()) {
         wifiClient_.connect(WiFi.gatewayIP(), WIFI_PORT);
     }
-    if (wifiClient_.connected() && wifiClient_.available() >= 4) {
-        uint8_t buf[4];
-        wifiClient_.read(buf, 4);
-        wifiClient_.write("PONG", 4);
+    if (wifiClient_.connected() && wifiClient_.available() > 0) {
+        // Whatever Node A sent (the "REQB" trigger) -- its arrival is the
+        // cue to reply with our own telemetry, content doesn't matter.
+        while (wifiClient_.available() > 0) wifiClient_.read();
+        String payload = buildOwnPeerPayload();
+        payload += '\n';
+        wifiClient_.print(payload);
         ok = true;
     }
 #endif
@@ -178,14 +204,18 @@ bool LinkManager::tryBleExchange() {
     const bool connected = bleServer_ != nullptr && bleServer_->getConnectedCount() > 0;
     if (connected) {
         s_bleExchangeSignal = false;
+        s_bleExchangePayload = "";
         const uint32_t t0 = millis();
-        bleChar_->setValue("PING");
+        bleChar_->setValue("REQB");
         bleChar_->notify();
 
         while (!s_bleExchangeSignal && (millis() - t0) < LINK_TIMEOUT_MS) {
             delay(2);
         }
         if (s_bleExchangeSignal) {
+            if (s_bleExchangePayload.length() > 0) {
+                parsePeerPayload(s_bleExchangePayload);
+            }
             sample.rtt_ms = millis() - t0;
             sample.packet_ok = true;
         }
@@ -220,12 +250,31 @@ bool LinkManager::tryBleExchange() {
 }
 
 bool LinkManager::tryLoraExchange() {
-    const char* msg = "SWAP_PING";
-    const bool txOk = sendLoRaTelemetry(msg);
+#ifdef NODE_ROLE_A
+    // Node A just beacons -- it doesn't need to send its own numbers over
+    // the air, it already has them locally for its own UART frame.
+    const bool txOk = sendLoRaTelemetry("SWAP_PING");
+#else
+    // Node B transmits its own telemetry CSV instead of a bare ping --
+    // sendLoRaTelemetry() takes a const char*, safe here since CSV text has
+    // no embedded nulls (unlike a raw binary struct would).
+    String loraPayload = buildOwnPeerPayload();
+    const bool txOk = sendLoRaTelemetry(loraPayload.c_str());
+#endif
 
-    uint8_t rxBuf[64];
+    uint8_t rxBuf[96];
     size_t rxLen = 0;
     const bool rxOk = receiveLoRaTelemetry(rxBuf, sizeof(rxBuf), rxLen, LINK_TIMEOUT_MS);
+
+#ifdef NODE_ROLE_A
+    if (rxOk && rxLen > 0 && rxLen < sizeof(rxBuf)) {
+        rxBuf[rxLen] = '\0';
+        String received(reinterpret_cast<char*>(rxBuf));
+        if (received != "SWAP_PING") {
+            parsePeerPayload(received);
+        }
+    }
+#endif
 
     LinkQualitySample sample;
     const LoraMetrics& m = getLoraMetrics();
@@ -269,14 +318,7 @@ void LinkManager::evaluateAndSwitch() {
         Serial.print(" -> ");
         Serial.println(static_cast<int>(next));
         active_ = next;
-        setActiveProtocolLed(active_);
     }
-}
-
-void LinkManager::setActiveProtocolLed(ActiveProtocol p) {
-    digitalWrite(LED_WIFI, p == ActiveProtocol::WIFI);
-    digitalWrite(LED_BLE, p == ActiveProtocol::BLE);
-    digitalWrite(LED_LORA, p == ActiveProtocol::LORA);
 }
 
 void LinkManager::pollIncomingCommands() {
@@ -335,6 +377,60 @@ void LinkManager::emitTelemetryFrame() {
     TELEMETRY_SERIAL.println();
 }
 
+String LinkManager::buildOwnPeerPayload() const {
+    float rtt;
+    switch (active_) {
+        case ActiveProtocol::WIFI: rtt = wifiMetrics_.avgRtt(); break;
+        case ActiveProtocol::BLE:  rtt = bleMetrics_.avgRtt();  break;
+        case ActiveProtocol::LORA: rtt = loraMetrics_.avgRtt(); break;
+        default: rtt = 0.0f; break;
+    }
+    char buf[80];
+    snprintf(buf, sizeof(buf), "%.1f,%.3f,%.1f,%.1f,%.1f,%.3f,%.0f",
+             wifiMetrics_.avgRssi(), wifiMetrics_.packetLossRate(),
+             bleMetrics_.avgRssi(), loraMetrics_.avgRssi(),
+             getLoraMetrics().snr_db, loraMetrics_.packetLossRate(), rtt);
+    return String(buf);
+}
+
+void LinkManager::parsePeerPayload(const String& csv) {
+    float vals[7];
+    int idx = 0;
+    int start = 0;
+    for (int i = 0; i <= static_cast<int>(csv.length()) && idx < 7; i++) {
+        if (i == static_cast<int>(csv.length()) || csv[i] == ',') {
+            vals[idx++] = csv.substring(start, i).toFloat();
+            start = i + 1;
+        }
+    }
+    if (idx != 7) return;  // malformed line -- ignore rather than relay garbage
+    nodeBWifiRssi_ = vals[0];
+    nodeBWifiLoss_ = vals[1];
+    nodeBBleRssi_  = vals[2];
+    nodeBLoraRssi_ = vals[3];
+    nodeBLoraSnr_  = vals[4];
+    nodeBLoraLoss_ = vals[5];
+    nodeBRttMs_    = vals[6];
+    haveNodeBTelemetry_ = true;
+}
+
+void LinkManager::emitNodeBTelemetryFrame() {
+    if (!haveNodeBTelemetry_) return;  // never heard from Node B yet
+    StaticJsonDocument<256> doc;
+    doc["node"] = "b";
+    doc["ts_ms"] = millis();
+    doc["active_protocol"] = static_cast<int>(active_);
+    doc["wifi_rssi"] = nodeBWifiRssi_;
+    doc["wifi_loss"] = nodeBWifiLoss_;
+    doc["ble_rssi"] = nodeBBleRssi_;
+    doc["lora_rssi"] = nodeBLoraRssi_;
+    doc["lora_snr"] = nodeBLoraSnr_;
+    doc["lora_loss"] = nodeBLoraLoss_;
+    doc["rtt_ms"] = nodeBRttMs_;
+    serializeJson(doc, TELEMETRY_SERIAL);
+    TELEMETRY_SERIAL.println();
+}
+
 void LinkManager::loop() {
     pollIncomingCommands();
 
@@ -357,8 +453,11 @@ void LinkManager::loop() {
     evaluateAndSwitch();
 
     static uint32_t lastTelemetry = 0;
-    if (millis() - lastTelemetry > 1000) {
+    if (millis() - lastTelemetry > TELEMETRY_INTERVAL_MS) {
         emitTelemetryFrame();
+#ifdef NODE_ROLE_A
+        emitNodeBTelemetryFrame();
+#endif
         lastTelemetry = millis();
     }
 }

@@ -1,0 +1,17 @@
+{
+  "name": "swap-hindrance-backend",
+  "version": "1.0.0",
+  "description": "SWAP Protocol Hindrance Control Backend",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.17.0",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.1"
+  }
+}

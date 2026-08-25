@@ -1,1 +1,1 @@
-wifi_rssi,ble_rssi,lora_rssi,lora_snr,pdr,rtt,retries
+wifi_rssi,wifi_loss,ble_rssi,lora_rssi,lora_snr,lora_loss,rtt_ms

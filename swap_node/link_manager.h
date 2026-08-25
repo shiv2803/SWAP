@@ -63,6 +63,13 @@ public:
     ActiveProtocol currentProtocol() const { return active_; }
     void emitTelemetryFrame();  // sends one JSON line over TELEMETRY_SERIAL
 
+    // Node B: encodes its own current rolling metrics as a compact CSV line
+    // ("wifi_rssi,wifi_loss,ble_rssi,lora_rssi,lora_snr,lora_loss,rtt_ms"),
+    // piggybacked on the wireless exchange instead of a bare "PONG" -- public
+    // because the free-function BLE notify callback in link_manager.cpp
+    // calls it on the global `linkManager` instance.
+    String buildOwnPeerPayload() const;
+
 private:
     ActiveProtocol active_ = ActiveProtocol::WIFI;
     RollingMetrics wifiMetrics_, bleMetrics_, loraMetrics_;
@@ -86,8 +93,21 @@ private:
     bool tryBleExchange();
     bool tryLoraExchange();
     void evaluateAndSwitch();
-    void setActiveProtocolLed(ActiveProtocol p);
     void pollIncomingCommands();
+
+    // Node A: decodes Node B's relayed CSV line and forwards it to the UNO Q
+    // as a second, "node":"b" UART frame alongside Node A's own.
+    void parsePeerPayload(const String& csv);
+    void emitNodeBTelemetryFrame();
+
+    bool haveNodeBTelemetry_ = false;
+    float nodeBWifiRssi_ = -999.0f;
+    float nodeBWifiLoss_ = 1.0f;
+    float nodeBBleRssi_ = -999.0f;
+    float nodeBLoraRssi_ = -999.0f;
+    float nodeBLoraSnr_ = -999.0f;
+    float nodeBLoraLoss_ = 1.0f;
+    float nodeBRttMs_ = 0.0f;
 };
 
 #endif  // SWAP_LINK_MANAGER_H
