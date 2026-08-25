@@ -1,0 +1,15 @@
+# app.yaml: App Lab manifest for the SWAP FastAPI backend.
+#
+# This is the app the dashboard (swap-frontend) talks to. It replaces
+# uno_q_app for live operation: same trained-model idea, but the full
+# backend -- rolling-window features, hysteresis/dwell governor, REST +
+# WebSocket API -- instead of a per-frame prediction with log output only.
+
+name: swap-backend
+
+icon: 📡
+
+# 8000 is where uvicorn serves /status, /decide, /force and /ws/live.
+ports: [8000]
+
+bricks: []

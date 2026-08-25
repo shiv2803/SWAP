@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "swap-frontend",
+      "runtimeExecutable": "C:\\Users\\SHIV\\AppData\\Local\\arduino-app-lab\\ai-runtime\\claude\\node\\node.exe",
+      "runtimeArgs": [
+        "C:\\Users\\SHIV\\.copilot\\repos\\SWAP\\swap-frontend\\node_modules\\vite\\bin\\vite.js",
+        "C:\\Users\\SHIV\\.copilot\\repos\\SWAP\\swap-frontend",
+        "--port", "5173",
+        "--strictPort"
+      ],
+      "port": 5173
+    }
+  ]
+}

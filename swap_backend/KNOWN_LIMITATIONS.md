@@ -38,3 +38,15 @@ def _score_ble(m):
 - Live serial telemetry ingest (`SerialTelemetrySource`), CP2102 plug/unplug recovery, and the two-port vs. single-port topology question — no ESP32 nodes or CP2102 adapter available in this environment.
 - App Lab packaging (`app.yaml` + `python/main.py` entry point) — has to be done on the physical UNO Q board.
 - Real-hardware inference latency and CPU cost on the UNO Q's MPU — only measured on a Windows dev machine so far (`mean_inference_ms` via `GET /model/info`).
+
+## 4. Control logic: two deliberate deviations from the spec, and one scoring artifact
+
+`control.py` implements SWAP_UNO_Q_Control_Logic_Specification.md. Three things worth knowing:
+
+**(a) The transition timeout is 5 s + 2 s grace, not a bare 5 s.** The spec sets `transitionTimeout = 5 seconds` (§10). Node A, however, spends up to ~1.5 s negotiating with Node B (retrying an `I:<N>` intent until it is acked) *before* its own 5-second trial starts, and the `switch_result` then has to travel back over the UART. Declaring failure at exactly 5.0 s would race a trial that is still legitimately running. `RESULT_GRACE_S = 2.0` covers that; the authoritative outcome is always Node A's `switch_result`, and the timeout is only a backstop for a report that never arrives.
+
+**(b) `OPERATOR_HOLD_S = 15 s` is not in the spec at all.** The spec never mentions manual overrides. With §11's adaptive loop running autonomously, an operator's `/force` was observed being reversed by the next adaptive evaluation ~2 seconds later, which makes manual control useless. The adaptive layer now stands down for 15 s after an operator command. Remove it if the spec is ever extended to say otherwise.
+
+**(c) The active protocol biases the scores against faster protocols.** `rtt_ms` is a single field describing whichever link is currently carrying traffic — the schema has no per-protocol RTT. But `_score_wifi` penalizes at `rtt_ms * 0.1` while `_score_lora` penalizes at `rtt_ms * 0.02`. So while LoRa is active (RTT ~200–400 ms), Wi-Fi's score absorbs a 5× larger penalty derived from a measurement that has nothing to do with Wi-Fi, and LoRa tends to keep winning. Observed directly in a simulator run: `wifi_rssi -62.9 dBm, wifi_loss 0.09` — genuinely good Wi-Fi — still scored below LoRa purely because the active LoRa link's 228 ms RTT was charged against it.
+
+This is not a spec violation (the spec only requires Wi-Fi be the *first* protocol, and BLE be last), and it is left unchanged on purpose: the scoring formulas are shared with `train_model.py`'s label function and the frontend predictor, so a fix has to land in all three plus a retrain — the same cross-codebase decision described in §2 above. Worth deciding before claiming the adaptive layer prefers the genuinely best link rather than the incumbent one.

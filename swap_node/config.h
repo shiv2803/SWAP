@@ -9,7 +9,7 @@
 // build Node B's image, comment out the #define below entirely. Leaving it
 // defined (even as 0) still makes every #ifdef NODE_ROLE_A branch true,
 // which is what silently broke role selection before this fix.
-#define NODE_ROLE_A
+// #define NODE_ROLE_A
 
 // --- WIFI LINK (Node A hosts the SoftAP, Node B connects as a station) ---
 #define WIFI_SSID "SWAP_LINK"
@@ -32,18 +32,17 @@
 #define BLE_EXCHANGE_TIMEOUT_MS 300
 
 // --- LoRa (SX1262) pin map ---
-// DEFAULTS FOR A GENERIC ESP32 DEVKIT — NOT VERIFIED AGAINST PHYSICAL WIRING.
-// This environment has no hardware/toolchain to build against (see README
-// "What I could not verify"), so these are placeholder GPIOs chosen only to
-// avoid ESP32 strapping pins (0/2/12/15) and the default VSPI bus pins
-// (18=SCK, 19=MISO, 23=MOSI, which RadioLib's default SPI instance already
-// claims). Confirm/adjust against your actual module wiring before flashing.
-#define LORA_NSS 5
-#define LORA_RST 14
-#define LORA_BUSY 34   // input-only pin; BUSY is MCU-side input, so this is fine
-#define LORA_DIO1 35   // input-only pin; DIO1 is MCU-side input (IRQ), so this is fine
-#define LORA_RXEN 25
-#define LORA_TXEN 33
+// Taken from the real, physical pin diagram (SWAP Project Node A/B ESP32
+// DevKit V1 38-pin diagrams, silkscreen-matched) -- these were previously
+// unverified placeholders and were WRONG; corrected against that diagram.
+// SPI bus itself (MOSI=23, MISO=19, SCK=18) matches RadioLib's default
+// VSPI pins, so those are left implicit rather than redefined here.
+#define LORA_NSS 21    // SPI_NSS / LoRa CS
+#define LORA_RST 33    // LORA_RESET
+#define LORA_BUSY 27   // LORA_BUSY
+#define LORA_DIO1 26   // LORA_DIO1 (IRQ)
+#define LORA_RXEN 25   // LORA_RXEN (must be driven in firmware)
+#define LORA_TXEN 32   // LORA_TXEN (must be driven in firmware)
 
 // --- LoRa radio parameters (IN865 region defaults) ---
 // PWR is a conservative default, not a regulatory certification — check your
@@ -58,20 +57,29 @@
 // sub-band you transmit on — some IN865 sub-bands permit more).
 #define MAX_LORA_DUTY_CYCLE 0.01f
 
-// --- Telemetry UART (Serial2 -> CP2102 -> UNO Q, see swap_backend wiring) ---
+// --- Telemetry UART (Serial2 -> UNO Q D14/D15, see uno_q_mcu_sketch) ---
+// 115200, not 19200 -- UNO Q's D0/D1 (usart1) doubles as the Zephyr
+// console/boot-log UART on that side and holds 115200 regardless of what's
+// requested there, per uno_q_mcu_sketch/sketch/sketch.ino's own comment.
+// Matching it here is the only way both ends agree; the old 19200 meant
+// zero valid frames were ever received.
 #define TELEMETRY_SERIAL Serial2
-#define TELEMETRY_BAUD 19200
+#define TELEMETRY_BAUD 115200
 #define TELEMETRY_RX_PIN 16
 #define TELEMETRY_TX_PIN 17
 
-// --- Status LEDs ---
-#define LED_WIFI 4
-#define LED_BLE 13
-#define LED_LORA 27
+// --- Status LEDs: REMOVED (2026-08-23) ---
+// The real pin diagram confirms this board's design dropped discrete status
+// LEDs entirely -- GPIO4/13/27 (previously LED_WIFI/LED_BLE/LED_LORA here)
+// are the I2C bus and LORA_BUSY. Status is read via Serial / telemetry only
+// now -- no on-board indicator.
 
 // --- Link exchange / switching tuning ---
 // Per-exchange timeout, shared by the Wi-Fi/BLE/LoRa PING-PONG round trips.
 #define LINK_TIMEOUT_MS 300
+// How often Node A emits its own telemetry AND (if it has heard from Node B
+// recently) Node B's relayed telemetry, over TELEMETRY_SERIAL to the UNO Q.
+#define TELEMETRY_INTERVAL_MS 4000
 // Rolling metrics window size — matches swap_backend's LinkQualityModel
 // window_size=10 so both sides reason over comparably-fresh data.
 #define METRIC_WINDOW_SAMPLES 10

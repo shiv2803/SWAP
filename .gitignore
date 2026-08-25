@@ -19,3 +19,17 @@ Thumbs.db
 models/
 telemetry_log*.csv
 *.zip
+
+# Node
+node_modules/
+dist/
+*.local
+
+# PlatformIO build cache (SWAP_HindranceTool/.pio -- 25 MB of build output)
+.pio/
+
+# Agent tooling scratch
+scheduled_tasks.lock
+
+# Ad-hoc telemetry captures kept for comparison, not source
+*.csv.bak

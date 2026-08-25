@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+# Explicit, not just via uvicorn[standard]: without a WebSocket
+# implementation uvicorn answers /ws/live with a plain HTTP error and the
+# browser reports "closed before the connection is established".
+websockets
+pydantic
+joblib
+numpy
+pandas
+scikit-learn
