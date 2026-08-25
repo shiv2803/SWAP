@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-label="SWAP - Smart Wireless Adaptive Protocol System">
+  <title>SWAP — Smart Wireless Adaptive Protocol System</title>
+  <defs>
+    <linearGradient id="wordmark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f4b860"/>
+      <stop offset="55%" stop-color="#7fe7c4"/>
+      <stop offset="100%" stop-color="#8fb6ff"/>
+    </linearGradient>
+    <linearGradient id="panelGlow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f4b860" stop-opacity=".10"/>
+      <stop offset="50%" stop-color="#7fe7c4" stop-opacity=".05"/>
+      <stop offset="100%" stop-color="#8fb6ff" stop-opacity=".12"/>
+    </linearGradient>
+    <radialGradient id="coreGlow">
+      <stop offset="0%" stop-color="#7fe7c4" stop-opacity=".55"/>
+      <stop offset="70%" stop-color="#7fe7c4" stop-opacity=".06"/>
+      <stop offset="100%" stop-color="#7fe7c4" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M30 0H0V30" fill="none" stroke="#233041" stroke-width="1" opacity=".5"/>
+    </pattern>
+    <clipPath id="panelClip"><rect x="0" y="0" width="1200" height="300" rx="18"/></clipPath>
+
+    <style>
+      .sweep      { animation: spin 7s linear infinite; transform-origin: 960px 150px; }
+      .ripple     { animation: ripple 3.2s ease-out infinite; transform-origin: 960px 150px; }
+      .r2         { animation-delay: 1.06s; }
+      .r3         { animation-delay: 2.13s; }
+      .orbA       { animation: spin 11s linear infinite; transform-origin: 960px 150px; }
+      .orbB       { animation: spin 16s linear infinite reverse; transform-origin: 960px 150px; }
+      .chip       { opacity: .28; animation: chipCycle 9s ease-in-out infinite; }
+      .chip-wifi  { animation-delay: 0s; }
+      .chip-ble   { animation-delay: 3s; }
+      .chip-lora  { animation-delay: 6s; }
+      .beacon     { animation: beacon 2.2s ease-in-out infinite; }
+      .track      { stroke-dasharray: 6 10; animation: dash 2.4s linear infinite; }
+      .fadein     { opacity: 0; animation: fadein .9s ease-out forwards; }
+      .d1 { animation-delay: .15s } .d2 { animation-delay: .35s } .d3 { animation-delay: .55s }
+
+      @keyframes spin    { to { transform: rotate(360deg); } }
+      @keyframes ripple  { 0% { r: 26px; opacity: .75 } 100% { r: 118px; opacity: 0 } }
+      @keyframes chipCycle { 0%,26% { opacity: 1 } 34%,100% { opacity: .28 } }
+      @keyframes beacon  { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
+      @keyframes dash    { to { stroke-dashoffset: -32 } }
+      @keyframes fadein  { to { opacity: 1 } }
+
+      @media (prefers-reduced-motion: reduce) {
+        .sweep, .ripple, .orbA, .orbB, .chip, .beacon, .track, .fadein { animation: none; }
+        .fadein { opacity: 1; } .chip { opacity: .7; }
+      }
+    </style>
+  </defs>
+
+  <g clip-path="url(#panelClip)">
+    <rect width="1200" height="300" fill="#0b0f14"/>
+    <rect width="1200" height="300" fill="url(#grid)"/>
+    <rect width="1200" height="300" fill="url(#panelGlow)"/>
+    <circle cx="960" cy="150" r="150" fill="url(#coreGlow)"/>
+
+    <!-- radar -->
+    <g class="sweep" opacity=".55">
+      <path d="M960 150 L1085 150 A125 125 0 0 0 1048 62 Z" fill="#7fe7c4" opacity=".13"/>
+      <line x1="960" y1="150" x2="1085" y2="150" stroke="#7fe7c4" stroke-width="1.5" opacity=".7"/>
+    </g>
+    <circle cx="960" cy="150" r="46" fill="none" stroke="#233041" stroke-width="1"/>
+    <circle cx="960" cy="150" r="82" fill="none" stroke="#233041" stroke-width="1"/>
+    <circle cx="960" cy="150" r="118" fill="none" stroke="#233041" stroke-width="1"/>
+    <circle class="ripple"    cx="960" cy="150" r="26" fill="none" stroke="#7fe7c4" stroke-width="1.6"/>
+    <circle class="ripple r2" cx="960" cy="150" r="26" fill="none" stroke="#f4b860" stroke-width="1.6"/>
+    <circle class="ripple r3" cx="960" cy="150" r="26" fill="none" stroke="#8fb6ff" stroke-width="1.6"/>
+
+    <!-- orbiting nodes -->
+    <g class="orbA">
+      <circle cx="1042" cy="150" r="6" fill="#f4b860"/>
+      <circle cx="1042" cy="150" r="12" fill="none" stroke="#f4b860" stroke-width="1" opacity=".4"/>
+    </g>
+    <g class="orbB">
+      <circle cx="878" cy="150" r="5" fill="#8fb6ff"/>
+      <circle cx="878" cy="150" r="11" fill="none" stroke="#8fb6ff" stroke-width="1" opacity=".4"/>
+    </g>
+    <circle cx="960" cy="150" r="13" fill="#0b0f14" stroke="#7fe7c4" stroke-width="2"/>
+    <circle class="beacon" cx="960" cy="150" r="5" fill="#7fe7c4"/>
+
+    <!-- wordmark -->
+    <g class="fadein">
+      <text x="72" y="132" font-family="ui-sans-serif,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif"
+            font-size="86" font-weight="800" letter-spacing="6" fill="url(#wordmark)">SWAP</text>
+    </g>
+    <g class="fadein d1">
+      <text x="76" y="168" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
+            font-size="14.5" letter-spacing="4.4" fill="#8b98a5">SMART WIRELESS ADAPTIVE PROTOCOL SYSTEM</text>
+    </g>
+    <g class="fadein d2">
+      <text x="76" y="206" font-family="ui-sans-serif,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif"
+            font-size="19" fill="#c9d4e0">One link. Three radios. The right one, automatically.</text>
+    </g>
+
+    <!-- protocol chips: the active one lights up in turn -->
+    <g class="fadein d3" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12.5" letter-spacing="1.6">
+      <line class="track" x1="76" y1="245" x2="700" y2="245" stroke="#233041" stroke-width="1.5"/>
+      <g class="chip chip-wifi">
+        <rect x="76" y="228" width="104" height="34" rx="9" fill="#f4b860" fill-opacity=".13" stroke="#f4b860" stroke-opacity=".55"/>
+        <circle cx="96" cy="245" r="4" fill="#f4b860"/>
+        <text x="108" y="250" fill="#f4b860">WI-FI</text>
+      </g>
+      <g class="chip chip-ble">
+        <rect x="196" y="228" width="92" height="34" rx="9" fill="#7fe7c4" fill-opacity=".13" stroke="#7fe7c4" stroke-opacity=".55"/>
+        <circle cx="216" cy="245" r="4" fill="#7fe7c4"/>
+        <text x="228" y="250" fill="#7fe7c4">BLE</text>
+      </g>
+      <g class="chip chip-lora">
+        <rect x="304" y="228" width="100" height="34" rx="9" fill="#8fb6ff" fill-opacity=".13" stroke="#8fb6ff" stroke-opacity=".55"/>
+        <circle cx="324" cy="245" r="4" fill="#8fb6ff"/>
+        <text x="336" y="250" fill="#8fb6ff">LORA</text>
+      </g>
+      <text x="428" y="250" fill="#5f6b7a">5-SECOND TRIAL &#183; ROLLBACK ON FAILURE</text>
+    </g>
+
+    <rect x="0" y="296" width="1200" height="4" fill="url(#wordmark)" opacity=".8"/>
+  </g>
+</svg>

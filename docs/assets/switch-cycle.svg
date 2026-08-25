@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 360" width="900" height="360" role="img" aria-label="Adaptive protocol switching between Wi-Fi, BLE and LoRa">
+  <title>The link moves between Wi-Fi, BLE and LoRa as conditions change</title>
+  <defs>
+    <radialGradient id="hub"><stop offset="0%" stop-color="#7fe7c4" stop-opacity=".45"/><stop offset="100%" stop-color="#7fe7c4" stop-opacity="0"/></radialGradient>
+    <pattern id="g2" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M36 0H0V36" fill="none" stroke="#1c2836" stroke-width="1"/>
+    </pattern>
+    <clipPath id="c2"><rect width="900" height="360" rx="16"/></clipPath>
+    <style>
+      /* 12s loop: Wi-Fi (0-4s) -> BLE (4-8s) -> LoRa (8-12s) */
+      .beam      { opacity: 0; stroke-width: 3; fill: none; stroke-linecap: round;
+                   stroke-dasharray: 10 8; animation: flow 1s linear infinite, live 12s steps(1) infinite; }
+      .beam-wifi { stroke: #f4b860; animation-delay: 0s, 0s; }
+      .beam-ble  { stroke: #7fe7c4; animation-delay: 0s, -8s; }
+      .beam-lora { stroke: #8fb6ff; animation-delay: 0s, -4s; }
+
+      .node      { opacity: .34; animation: wake 12s steps(1) infinite; }
+      .node-wifi { animation-delay: 0s; }
+      .node-ble  { animation-delay: -8s; }
+      .node-lora { animation-delay: -4s; }
+
+      .ring      { opacity: 0; animation: ring 12s ease-out infinite; }
+      .ring-wifi { animation-delay: 0s; } .ring-ble { animation-delay: -8s; } .ring-lora { animation-delay: -4s; }
+
+      .caption   { opacity: 0; animation: cap 12s steps(1) infinite; }
+      .cap-wifi  { animation-delay: 0s; } .cap-ble { animation-delay: -8s; } .cap-lora { animation-delay: -4s; }
+
+      .pulse     { animation: pulse 2.4s ease-in-out infinite; }
+      .scan      { animation: scan 12s linear infinite; }
+
+      @keyframes flow  { to { stroke-dashoffset: -18 } }
+      @keyframes live  { 0%,30% { opacity: 1 } 33.4%,100% { opacity: 0 } }
+      @keyframes wake  { 0%,30% { opacity: 1 } 33.4%,100% { opacity: .34 } }
+      @keyframes ring  { 0% { opacity: .8; r: 26px } 12% { opacity: 0; r: 54px } 100% { opacity: 0; r: 54px } }
+      @keyframes cap   { 0%,30% { opacity: 1 } 33.4%,100% { opacity: 0 } }
+      @keyframes pulse { 0%,100% { opacity: .4 } 50% { opacity: 1 } }
+      @keyframes scan  { 0% { transform: translateX(0) } 100% { transform: translateX(612px) } }
+
+      @media (prefers-reduced-motion: reduce) {
+        .beam, .node, .ring, .caption, .pulse, .scan { animation: none }
+        .beam-wifi { opacity: 1 } .node-wifi { opacity: 1 } .cap-wifi { opacity: 1 }
+      }
+    </style>
+  </defs>
+
+  <g clip-path="url(#c2)">
+    <rect width="900" height="360" fill="#0b0f14"/>
+    <rect width="900" height="360" fill="url(#g2)" opacity=".55"/>
+    <circle cx="450" cy="176" r="150" fill="url(#hub)"/>
+
+    <!-- link paths -->
+    <path class="beam beam-wifi" d="M264 168 C 312 118, 348 105, 384 105"/>
+    <path class="beam beam-wifi" d="M516 105 C 552 105, 588 118, 636 168"/>
+    <path class="beam beam-ble"  d="M266 176 L 384 176"/>
+    <path class="beam beam-ble"  d="M516 176 L 634 176"/>
+    <path class="beam beam-lora" d="M264 184 C 312 234, 348 247, 384 247"/>
+    <path class="beam beam-lora" d="M516 247 C 552 247, 588 234, 636 184"/>
+
+    <!-- protocol lanes -->
+    <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" letter-spacing="1.4">
+      <g class="node node-wifi">
+        <rect x="386" y="88" width="128" height="34" rx="9" fill="#f4b860" fill-opacity=".12" stroke="#f4b860" stroke-opacity=".6"/>
+        <circle cx="406" cy="105" r="4" fill="#f4b860"/>
+        <text x="418" y="110" fill="#f4b860">WI-FI</text>
+        <text x="470" y="110" fill="#8b98a5" font-size="10">18 Mbps</text>
+      </g>
+      <g class="node node-ble">
+        <rect x="386" y="159" width="128" height="34" rx="9" fill="#7fe7c4" fill-opacity=".12" stroke="#7fe7c4" stroke-opacity=".6"/>
+        <circle cx="406" cy="176" r="4" fill="#7fe7c4"/>
+        <text x="418" y="181" fill="#7fe7c4">BLE</text>
+        <text x="470" y="181" fill="#8b98a5" font-size="10">15 mW</text>
+      </g>
+      <g class="node node-lora">
+        <rect x="386" y="230" width="128" height="34" rx="9" fill="#8fb6ff" fill-opacity=".12" stroke="#8fb6ff" stroke-opacity=".6"/>
+        <circle cx="406" cy="247" r="4" fill="#8fb6ff"/>
+        <text x="418" y="252" fill="#8fb6ff">LORA</text>
+        <text x="470" y="252" fill="#8b98a5" font-size="10">866 MHz</text>
+      </g>
+    </g>
+
+    <!-- endpoints -->
+    <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12.5" letter-spacing="1.6">
+      <circle cx="230" cy="176" r="34" fill="#111820" stroke="#2b3a4d" stroke-width="1.5"/>
+      <circle class="ring ring-wifi" cx="230" cy="176" r="26" fill="none" stroke="#f4b860" stroke-width="1.5"/>
+      <circle class="ring ring-ble"  cx="230" cy="176" r="26" fill="none" stroke="#7fe7c4" stroke-width="1.5"/>
+      <circle class="ring ring-lora" cx="230" cy="176" r="26" fill="none" stroke="#8fb6ff" stroke-width="1.5"/>
+      <text x="230" y="181" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="700">A</text>
+      <text x="230" y="238" text-anchor="middle" fill="#8b98a5" font-size="10.5">NODE A</text>
+      <text x="230" y="254" text-anchor="middle" fill="#5f6b7a" font-size="9.5">ESP32 &#183; UART TO UNO Q</text>
+
+      <circle cx="670" cy="176" r="34" fill="#111820" stroke="#2b3a4d" stroke-width="1.5"/>
+      <circle class="ring ring-wifi" cx="670" cy="176" r="26" fill="none" stroke="#f4b860" stroke-width="1.5"/>
+      <circle class="ring ring-ble"  cx="670" cy="176" r="26" fill="none" stroke="#7fe7c4" stroke-width="1.5"/>
+      <circle class="ring ring-lora" cx="670" cy="176" r="26" fill="none" stroke="#8fb6ff" stroke-width="1.5"/>
+      <text x="670" y="181" text-anchor="middle" fill="#e6edf3" font-size="15" font-weight="700">B</text>
+      <text x="670" y="238" text-anchor="middle" fill="#8b98a5" font-size="10.5">NODE B</text>
+      <text x="670" y="254" text-anchor="middle" fill="#5f6b7a" font-size="9.5">ESP32 &#183; RELAYED VIA A</text>
+    </g>
+
+    <!-- why it switched -->
+    <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11.5" letter-spacing="1.2">
+      <rect x="60" y="300" width="780" height="34" rx="9" fill="#111820" stroke="#1c2836"/>
+      <circle class="pulse" cx="82" cy="317" r="4" fill="#7fe7c4"/>
+      <text class="caption cap-wifi" x="98" y="322" fill="#c9d4e0">WI-FI ACTIVE &#8212; strongest signal, lowest round-trip, loss under threshold</text>
+      <text class="caption cap-ble"  x="98" y="322" fill="#c9d4e0">BLE ACTIVE &#8212; last resort on power, and only when it clearly beats the rest</text>
+      <text class="caption cap-lora" x="98" y="322" fill="#c9d4e0">LORA ACTIVE &#8212; reach over speed, the floor the link always rolls back to</text>
+    </g>
+
+    <!-- scanning marker -->
+    <g class="scan" opacity=".35">
+      <line x1="144" y1="60" x2="144" y2="290" stroke="#7fe7c4" stroke-width="1"/>
+    </g>
+  </g>
+</svg>

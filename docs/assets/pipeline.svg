@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 230" width="960" height="230" role="img" aria-label="Telemetry pipeline from the radios to the switch command">
+  <title>From radio to decision: how one telemetry frame becomes a switch command</title>
+  <defs>
+    <clipPath id="c4"><rect width="960" height="230" rx="16"/></clipPath>
+    <pattern id="g4" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#1c2836" stroke-width="1"/>
+    </pattern>
+    <marker id="arw" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M0 0 L9 4.5 L0 9 z" fill="#2b3a4d"/>
+    </marker>
+    <style>
+      .packet { animation: travel 4.6s linear infinite; }
+      .p2 { animation-delay: -1.15s } .p3 { animation-delay: -2.3s } .p4 { animation-delay: -3.45s }
+      .box   { animation: glow 4.6s ease-in-out infinite; }
+      .b1 { animation-delay: 0s } .b2 { animation-delay: .55s } .b3 { animation-delay: 1.1s }
+      .b4 { animation-delay: 1.65s } .b5 { animation-delay: 2.2s } .b6 { animation-delay: 2.75s }
+      .gate  { animation: gateBlink 4.6s ease-in-out infinite; }
+
+      @keyframes travel { 0% { transform: translateX(0); opacity: 0 } 6% { opacity: 1 }
+                          94% { opacity: 1 } 100% { transform: translateX(788px); opacity: 0 } }
+      @keyframes glow   { 0%,100% { stroke-opacity: .35 } 12% { stroke-opacity: 1 } 40% { stroke-opacity: .35 } }
+      @keyframes gateBlink { 0%,100% { opacity: .45 } 55% { opacity: 1 } }
+
+      @media (prefers-reduced-motion: reduce) { .packet, .box, .gate { animation: none } .packet { opacity: 1 } }
+    </style>
+  </defs>
+
+  <g clip-path="url(#c4)">
+    <rect width="960" height="230" fill="#0b0f14"/>
+    <rect width="960" height="230" fill="url(#g4)" opacity=".5"/>
+
+    <line x1="86" y1="112" x2="878" y2="112" stroke="#1c2836" stroke-width="2" marker-end="url(#arw)"/>
+
+    <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.3" text-anchor="middle">
+      <!-- stages -->
+      <g class="box b1">
+        <rect x="26" y="86" width="118" height="52" rx="10" fill="#111820" stroke="#f4b860"/>
+        <text x="85" y="108" fill="#f4b860">NODE A/B</text>
+        <text x="85" y="124" fill="#5f6b7a" font-size="9">RSSI &#183; LOSS &#183; RTT</text>
+      </g>
+      <g class="box b2">
+        <rect x="172" y="86" width="118" height="52" rx="10" fill="#111820" stroke="#2b3a4d"/>
+        <text x="231" y="108" fill="#c9d4e0">UART BRIDGE</text>
+        <text x="231" y="124" fill="#5f6b7a" font-size="9">SERIAL2 @115200</text>
+      </g>
+      <g class="box b3">
+        <rect x="318" y="86" width="118" height="52" rx="10" fill="#111820" stroke="#2b3a4d"/>
+        <text x="377" y="108" fill="#c9d4e0">FEATURE WINDOW</text>
+        <text x="377" y="124" fill="#5f6b7a" font-size="9">10 FRAMES, FRESH</text>
+      </g>
+      <g class="box b4">
+        <rect x="464" y="86" width="118" height="52" rx="10" fill="#111820" stroke="#7fe7c4"/>
+        <text x="523" y="108" fill="#7fe7c4">MODEL</text>
+        <text x="523" y="124" fill="#5f6b7a" font-size="9">RF + RULE FALLBACK</text>
+      </g>
+      <g class="box b5">
+        <rect x="610" y="86" width="118" height="52" rx="10" fill="#111820" stroke="#f4b860"/>
+        <text x="669" y="108" fill="#f4b860">GATE</text>
+        <text x="669" y="124" fill="#5f6b7a" font-size="9">LINK + NO TRIAL</text>
+      </g>
+      <g class="box b6">
+        <rect x="756" y="86" width="118" height="52" rx="10" fill="#111820" stroke="#8fb6ff"/>
+        <text x="815" y="108" fill="#8fb6ff">SWITCH CMD</text>
+        <text x="815" y="124" fill="#5f6b7a" font-size="9">BACK DOWN TO A</text>
+      </g>
+    </g>
+
+    <!-- travelling frames -->
+    <g>
+      <g class="packet"><circle cx="86" cy="112" r="4.5" fill="#7fe7c4"/></g>
+      <g class="packet p2"><circle cx="86" cy="112" r="4.5" fill="#f4b860"/></g>
+      <g class="packet p3"><circle cx="86" cy="112" r="4.5" fill="#8fb6ff"/></g>
+      <g class="packet p4"><circle cx="86" cy="112" r="4.5" fill="#7fe7c4"/></g>
+    </g>
+
+    <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" letter-spacing="1.4">
+      <text x="26" y="42" fill="#8b98a5">ONE FRAME, END TO END</text>
+      <text x="26" y="62" fill="#5f6b7a" font-size="9.5">PROBED EVERY 1s &#183; FRAME EMITTED EVERY 4s</text>
+      <text x="26" y="172" fill="#5f6b7a" font-size="9.5">CORRUPT LINES RECOVERED WHERE POSSIBLE &#183; DROPPED FRAMES COUNTED, NOT GUESSED AT</text>
+      <g class="gate">
+        <text x="26" y="196" fill="#f4b860" font-size="9.5">GUARDS AT THE GATE: HYSTERESIS &#183; 5s DWELL &#183; BLE LAST &#183; 3s BLE SETTLE &#183; ONE TRANSITION AT A TIME</text>
+      </g>
+    </g>
+  </g>
+</svg>
